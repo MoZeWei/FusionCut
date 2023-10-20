@@ -75,6 +75,8 @@ class CutQC:
         )
         for field in cut_solution:
             self.__setattr__(field, cut_solution[field])
+        ##TODO: Embed the OneQ part here.
+        exit(1)
         if "complete_path_map" in cut_solution:
             self.has_solution = True
             self._generate_metadata()

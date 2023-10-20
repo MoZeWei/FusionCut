@@ -82,6 +82,7 @@ def generate_gates(nqubit, ngate, mode):
         for target in range(3,6):
             gates.append((2,target))
         gates.append((3,4))
+        gates.append((6,3))
         gates.append((3,5))
         gates.append((4,5))
     

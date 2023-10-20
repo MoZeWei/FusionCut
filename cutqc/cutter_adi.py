@@ -36,6 +36,9 @@ class MIP_Model(object):
         self.model = gp.Model(name="cut_searching")
         self.model.params.OutputFlag = 0
         
+        print("Use the adi cutter")
+        exit(1)
+
         self._add_variables()
         self._add_constraints()
 

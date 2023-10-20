@@ -36,6 +36,8 @@ if __name__ == "__main__":
         verbose=True,
     )
     cutqc.cut()
+    print("Finish the cutting")
+    exit(1)
     if not cutqc.has_solution:
         raise Exception("The input circuit and constraints have no viable cuts")
 
