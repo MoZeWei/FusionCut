@@ -297,6 +297,7 @@ class MIP_Model(object):
         objective_fun = self.Dummy_var
         for subcircuit in range(self.num_subcircuit):
             objective_fun += self.subcircuit_counter[subcircuit]["log_fusion_weight"]
+        objective_fun -= self.num_cuts
         # self.model.setObjective(self.num_cuts, gp.GRB.MINIMIZE)
         self.model.setObjective(objective_fun, gp.GRB.MAXIMIZE)
         self.model.update()

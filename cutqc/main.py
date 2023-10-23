@@ -9,6 +9,10 @@ from cutqc.post_process_helper import (
     generate_compute_graph,
 )
 from cutqc.dynamic_definition import DynamicDefinition, full_verify
+from OneQ.Construct_Test_Circuit import generate_from_gate_list
+from OneQ.Graph_State import generate_graph_state
+from OneQ.Fusion_Generation import generate_fusion, fusion_win
+from OneQ.Generate_State import generate_state
 
 
 class CutQC:
@@ -38,6 +42,18 @@ class CutQC:
         if os.path.exists(self.tmp_data_folder):
             subprocess.run(["rm", "-r", self.tmp_data_folder])
         os.makedirs(self.tmp_data_folder)
+
+    def get_gatelist_from_circuit(self, circuit):
+        gatelist = []
+        for gate in circuit.data:
+            gate_info = {}
+            gate_name = gate.operation.name
+            gate_info['name'] = gate_name
+            gate_info['qubit'] = []
+            for qubit in gate.qubits:
+                gate_info['qubit'].append(qubit.index)
+            gatelist.append(gate_info)
+        return gatelist
 
     def cut(self):
         """
@@ -69,13 +85,47 @@ class CutQC:
             print(self.cutter_constraints)
             print("Original Circuit:\n")
             print(self.circuit)
+        
+        resource_state = generate_state(3)          ##NOTE: This might raise failure leading to abort
+        ##Calculate the #fusion in original circuit
+        original_gatelist = self.get_gatelist_from_circuit(self.circuit)
+        original_nqubit = len(self.circuit.qubits)
+        original_OneQ_gates_list, original_nqubit = generate_from_gate_list(original_gatelist,
+                                                                            original_nqubit)
+        print("Len of original_OneQ_gates_list: %d" %len(original_OneQ_gates_list))
+        original_OneQ_gs, original_OneQ_input_nodes, original_OneQ_colors = generate_graph_state(original_OneQ_gates_list, original_nqubit)
+        ##Third: Get result from generate_fusion
+        original_nfusion = generate_fusion(original_OneQ_gates_list, original_nqubit, 
+                                           original_OneQ_gs, original_OneQ_input_nodes, 
+                                           original_OneQ_colors, resource_state)
+            
+        ##Find cutting solution
         cutter_begin = perf_counter()
         cut_solution = find_cuts(
             **self.cutter_constraints, circuit=self.circuit, verbose=self.verbose
         )
         for field in cut_solution:
             self.__setattr__(field, cut_solution[field])
+        
         ##TODO: Embed the OneQ part here.
+        sub_circuits = cut_solution["subcircuits"]
+        fusion_list = []
+        max_fusion = 0
+        for sub_circuit in sub_circuits:
+            nqubit = len(sub_circuit.qubits)
+            gatelist = self.get_gatelist_from_circuit(sub_circuit)
+            ##Second: Pass it to generate_graph state
+            OneQ_gates_list, nqubit = generate_from_gate_list(gatelist, nqubit)
+            print("Len of sub_OneQ_gates_list: %d" %len(OneQ_gates_list))
+            OneQ_gs, OneQ_input_nodes, OneQ_colors = generate_graph_state(OneQ_gates_list, nqubit)
+            ##Third: Get result from generate_fusion
+            nfusion = generate_fusion(OneQ_gates_list, nqubit, OneQ_gs, OneQ_input_nodes, OneQ_colors, resource_state)
+            max_fusion = max(max_fusion, nfusion)
+            fusion_list.append(nfusion)
+
+        print("After cutting, maximum fusion of subcircuits is %d" %max_fusion)
+        fusion_win(original_nfusion, max_fusion)
+
         exit(1)
         if "complete_path_map" in cut_solution:
             self.has_solution = True
